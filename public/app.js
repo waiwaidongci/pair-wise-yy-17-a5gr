@@ -129,14 +129,28 @@ function renderStats() {
   }).join('')}</div>`;
 }
 
+function computeField(item, kind) {
+  if (kind === 'sealProgress') {
+    const info = item.sealInfo;
+    if (!info) return '';
+    const reviews = info.reviews || [];
+    const last = reviews[reviews.length - 1];
+    const done = `已复核${reviews.length}/${info.needed || 2}晚`;
+    return last ? `${done}（${last.date} ${last.observer}）` : `${done}，待换人复核`;
+  }
+  return '';
+}
+
 function renderCard(item, collection, view) {
   const title = view.titleFields.map((field) => item[field]).filter(Boolean).join(' / ') || item.id;
   const statusValue = item[view.statusField];
   const relation = view.relation ? `<div class="meta">${escapeHtml(relationLabel(view.relation, item[view.relation.localKey]))}</div>` : '';
   const details = (view.detailFields || []).map((field) => {
-    const raw = item[field.name];
+    const raw = field.compute ? computeField(item, field.compute) : item[field.name];
+    if (field.compute && !raw) return '';
     const value = field.type === 'relation' ? relationLabel(field, raw) : raw;
-    return `<div>${escapeHtml(field.label)}<br><strong>${escapeHtml(value || '-')}</strong></div>`;
+    const text = value === '' || value === undefined || value === null ? '-' : `${value}${field.suffix || ''}`;
+    return `<div>${escapeHtml(field.label)}<br><strong>${escapeHtml(text)}</strong></div>`;
   }).join('');
   const summary = (view.summaryFields || []).map((field) => item[field]).filter(Boolean).join(' · ');
   const actions = state.config.actions
@@ -168,20 +182,36 @@ function renderList(view) {
 }
 
 function renderDashboardView(view) {
-  const source = view.focus;
-  let items = [...(state.db[source.collection] || [])];
-  if (source.field) items = items.filter((item) => source.values.includes(item[source.field]));
-  items = items.slice(0, source.limit || 8);
-  const cardView = state.config.views.find((entry) => entry.collection === source.collection) || source;
+  const panels = view.panels || (view.focus ? [{ title: view.focusTitle, ...view.focus }] : []);
+  const panelsHtml = panels.map((panel) => {
+    let items = [...(state.db[panel.collection] || [])];
+    if (panel.field) items = items.filter((item) => panel.values.includes(item[panel.field]));
+    items = items.slice(0, panel.limit || 8);
+    const cardView = state.config.views.find((entry) => entry.collection === panel.collection) || panel;
+    return `<div class="panel"><h2>${escapeHtml(panel.title)}</h2><div class="list">${items.length ? items.map((item) => renderCard(item, panel.collection, cardView)).join('') : '<div class="empty">暂无重点事项</div>'}</div></div>`;
+  }).join('');
   return `<section class="view active" id="${view.id}">
     ${renderStats()}
-    <div class="panel"><h2>${escapeHtml(view.focusTitle)}</h2><div class="list">${items.length ? items.map((item) => renderCard(item, source.collection, cardView)).join('') : '<div class="empty">暂无重点事项</div>'}</div></div>
+    ${panelsHtml}
   </section>`;
+}
+
+function renderThresholdPanel(view) {
+  if (!view.threshold) return '';
+  const setting = (state.db.settings || []).find((entry) => entry.id === view.threshold.settingsId) || (state.db.settings || [])[0];
+  const ratio = Number(setting && setting[view.threshold.field]);
+  const pct = Number.isFinite(ratio) && ratio > 0 ? Math.round(ratio * 1000) / 10 : 15;
+  return `<form class="panel threshold" data-threshold="${view.id}">
+    <strong>判定规则</strong>
+    <span>幼蝠占比超过 <input type="number" name="pct" min="1" max="99" step="0.5" value="${pct}" required> % 或出现弃飞即封护；同一样点同晚只认首条，重复上报自动累加。</span>
+    <button class="secondary">保存阈值</button>
+  </form>`;
 }
 
 function renderCrudView(view) {
   const statusOptions = view.statusOptions || [];
   return `<section class="view" id="${view.id}">
+    ${renderThresholdPanel(view)}
     <div class="grid">
       <form class="panel" data-create="${view.collection}" data-view="${view.id}">
         <h2>${escapeHtml(view.formTitle)}</h2>
@@ -237,14 +267,37 @@ document.addEventListener('input', (event) => {
 });
 
 document.addEventListener('submit', async (event) => {
+  const thresholdForm = event.target.closest('[data-threshold]');
+  if (thresholdForm) {
+    event.preventDefault();
+    const view = state.config.views.find((entry) => entry.id === thresholdForm.dataset.threshold);
+    const setting = (state.db.settings || []).find((entry) => entry.id === view.threshold.settingsId) || (state.db.settings || [])[0];
+    const pct = Number(new FormData(thresholdForm).get('pct'));
+    if (!setting || !Number.isFinite(pct) || pct <= 0 || pct >= 100) return toast('阈值需在0到100之间');
+    try {
+      await api(`/api/settings/${setting.id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ [view.threshold.field]: pct / 100, historyAction: '调整阈值', note: `幼蝠占比阈值调整为${pct}%` })
+      });
+      await load();
+      toast('阈值已保存，已按新值重判');
+    } catch (error) {
+      toast(error.message);
+    }
+    return;
+  }
   const form = event.target.closest('[data-create]');
   if (!form) return;
   event.preventDefault();
   const view = state.config.views.find((entry) => entry.id === form.dataset.view);
-  await api(`/api/${form.dataset.create}`, { method: 'POST', body: JSON.stringify(values(form, view)) });
-  form.reset();
-  await load();
-  toast('已保存');
+  try {
+    const result = await api(`/api/${form.dataset.create}`, { method: 'POST', body: JSON.stringify(values(form, view)) });
+    form.reset();
+    await load();
+    toast(result && result.deduplicated ? '同一样点同晚只认首条，计数已累加' : '已保存');
+  } catch (error) {
+    toast(error.message);
+  }
 });
 
 $('#refreshBtn').addEventListener('click', () => load().then(() => toast('已刷新')));

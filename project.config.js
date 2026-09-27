@@ -1,23 +1,29 @@
 module.exports = {
   port: 3912,
   title: '钟乳石洞穴微环境巡测',
-  lede: '围绕洞穴、分区、样点和巡测路线记录微环境数据，发现异常后生成复查闭环。',
+  lede: '围绕洞穴、分区、样点和巡测路线记录微环境数据；繁殖季登记蝠群夜出，幼蝠占比或弃飞触发封护，复核达标自动解除。',
   tones: {
     '常规观察': 'ok',
     '正常': 'ok',
     '已复查': 'ok',
+    '读数正常': 'ok',
     '重点保护': 'warn',
     '异常待复查': 'bad',
+    '触发封护': 'bad',
+    '封护': 'bad',
     '暂停开放': 'bad'
   },
   collections: {
     sites: { label: '样点档案' },
-    surveys: { label: '巡测记录' }
+    surveys: { label: '巡测记录' },
+    emergences: { label: '夜出记录' },
+    settings: { label: '判定设置' }
   },
   stats: [
     { label: '样点', collection: 'sites' },
+    { label: '封护中', collection: 'sites', filter: { field: 'protectedStatus', value: '封护' } },
     { label: '重点保护', collection: 'sites', filter: { field: 'protectedStatus', value: '重点保护' } },
-    { label: '巡测记录', collection: 'surveys' },
+    { label: '夜出记录', collection: 'emergences' },
     { label: '待复查', collection: 'surveys', filter: { field: 'status', value: '异常待复查' } }
   ],
   views: [
@@ -25,8 +31,10 @@ module.exports = {
       id: 'dashboard',
       label: '趋势看板',
       type: 'dashboard',
-      focusTitle: '异常与复查',
-      focus: { collection: 'surveys', field: 'status', values: ['异常待复查'], limit: 8 }
+      panels: [
+        { title: '今晚不可进洞（封护/暂停开放）', collection: 'sites', field: 'protectedStatus', values: ['封护', '暂停开放'], limit: 8 },
+        { title: '异常与复查', collection: 'surveys', field: 'status', values: ['异常待复查'], limit: 8 }
+      ]
     },
     {
       id: 'sites',
@@ -38,13 +46,14 @@ module.exports = {
       searchPlaceholder: '搜索洞穴、分区、样点、路线',
       searchFields: ['cave', 'zone', 'pointCode', 'route'],
       statusField: 'protectedStatus',
-      statusOptions: ['常规观察', '重点保护', '暂停开放'],
+      statusOptions: ['常规观察', '重点保护', '封护', '暂停开放'],
       titleFields: ['pointCode', 'zone'],
       summaryFields: ['note'],
       detailFields: [
         { label: '洞穴', name: 'cave' },
         { label: '巡测路线', name: 'route' },
-        { label: '敏感等级', name: 'sensitivity' }
+        { label: '敏感等级', name: 'sensitivity' },
+        { label: '封护复核', compute: 'sealProgress' }
       ],
       fields: [
         { label: '洞穴', name: 'cave', required: true },
@@ -56,6 +65,39 @@ module.exports = {
         { label: '基准温度', name: 'baselineTemp', type: 'number', required: true },
         { label: '基准湿度', name: 'baselineHumidity', type: 'number', required: true },
         { label: '基准CO2', name: 'baselineCo2', type: 'number', required: true },
+        { label: '备注', name: 'note', type: 'textarea', wide: true }
+      ]
+    },
+    {
+      id: 'emergences',
+      label: '夜出台',
+      collection: 'emergences',
+      formTitle: '登记夜出',
+      listTitle: '夜出记录',
+      submitLabel: '保存夜出',
+      searchPlaceholder: '搜索观察员、备注',
+      searchFields: ['observer', 'note'],
+      statusField: 'judgment',
+      statusOptions: ['触发封护', '读数正常'],
+      titleFields: ['observer', 'date'],
+      relation: { collection: 'sites', localKey: 'siteId', labelFields: ['cave', 'zone', 'pointCode'] },
+      summaryFields: ['note'],
+      detailFields: [
+        { label: '成蝠数', name: 'adultCount' },
+        { label: '幼蝠数', name: 'juvenileCount' },
+        { label: '幼蝠占比', name: 'juvenileRatio', suffix: '%' },
+        { label: '温度', name: 'temperature' },
+        { label: '弃飞', name: 'abandonedFlight' }
+      ],
+      threshold: { settingsId: 'settings-emergence', field: 'juvenileRatioThreshold' },
+      fields: [
+        { label: '样点', name: 'siteId', type: 'relation', collection: 'sites', labelFields: ['cave', 'zone', 'pointCode'], required: true, wide: true },
+        { label: '日期', name: 'date', type: 'date', required: true },
+        { label: '观察员', name: 'observer', required: true },
+        { label: '成蝠数', name: 'adultCount', type: 'number', required: true },
+        { label: '幼蝠数', name: 'juvenileCount', type: 'number', required: true },
+        { label: '温度', name: 'temperature', type: 'number', required: true },
+        { label: '弃飞', name: 'abandonedFlight', type: 'select', options: ['无', '有'] },
         { label: '备注', name: 'note', type: 'textarea', wide: true }
       ]
     },
@@ -93,9 +135,22 @@ module.exports = {
     }
   ],
   actions: [
-    { id: 'site-normal', label: '常规观察', collection: 'sites', patches: [{ field: 'protectedStatus', value: '常规观察' }] },
-    { id: 'site-focus', label: '重点保护', collection: 'sites', patches: [{ field: 'protectedStatus', value: '重点保护' }] },
+    {
+      id: 'site-normal',
+      label: '常规观察',
+      collection: 'sites',
+      guards: [{ left: 'item.protectedStatus', op: 'neq', right: '封护', message: '封护中：须换人连续两晚复核达标后自动解除' }],
+      patches: [{ field: 'protectedStatus', value: '常规观察' }]
+    },
+    {
+      id: 'site-focus',
+      label: '重点保护',
+      collection: 'sites',
+      guards: [{ left: 'item.protectedStatus', op: 'neq', right: '封护', message: '封护中：须换人连续两晚复核达标后自动解除' }],
+      patches: [{ field: 'protectedStatus', value: '重点保护' }]
+    },
     { id: 'site-close', label: '暂停开放', collection: 'sites', danger: true, patches: [{ field: 'protectedStatus', value: '暂停开放' }] },
+    { id: 'site-rejudge', label: '重判封护', collection: 'sites', handler: 'rejudge' },
     {
       id: 'survey-alert',
       label: '标记异常',

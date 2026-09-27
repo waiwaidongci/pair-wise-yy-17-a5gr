@@ -17,6 +17,33 @@
       "history": [
         { "at": "2026-06-14T08:00:00.000Z", "action": "创建", "note": "样点建档" }
       ]
+    },
+    {
+      "id": "site-seed-2",
+      "cave": "北麓三号洞",
+      "zone": "蝙蝠栖息区",
+      "pointCode": "B-02",
+      "route": "东线巡测",
+      "sensitivity": "高",
+      "protectedStatus": "封护",
+      "baselineTemp": 15.8,
+      "baselineHumidity": 94,
+      "baselineCo2": 640,
+      "note": "繁殖季蝠群主要栖息洞厅",
+      "createdAt": "2026-06-10T08:00:00.000Z",
+      "updatedAt": "2026-06-17T21:30:00.000Z",
+      "sealInfo": {
+        "triggerDate": "2026-06-16",
+        "triggerObserver": "沈宁",
+        "reviews": [
+          { "date": "2026-06-17", "observer": "王小" }
+        ],
+        "needed": 2
+      },
+      "history": [
+        { "at": "2026-06-16T21:10:00.000Z", "action": "自动封护", "note": "幼蝠占比超15%或出现弃飞" },
+        { "at": "2026-06-10T08:00:00.000Z", "action": "创建", "note": "样点建档" }
+      ]
     }
   ],
   "surveys": [
@@ -37,6 +64,74 @@
       "updatedAt": "2026-06-18T10:00:00.000Z",
       "history": [
         { "at": "2026-06-18T10:00:00.000Z", "action": "创建", "note": "CO2升高并有干扰痕迹" }
+      ]
+    }
+  ],
+  "emergences": [
+    {
+      "id": "emergence-seed-1",
+      "siteId": "site-seed-1",
+      "date": "2026-06-18",
+      "adultCount": 120,
+      "juvenileCount": 10,
+      "temperature": 16.8,
+      "observer": "沈宁",
+      "abandonedFlight": "无",
+      "note": "出洞高峰在日落后二十分钟",
+      "judgment": "读数正常",
+      "juvenileRatio": 7.7,
+      "createdAt": "2026-06-18T13:00:00.000Z",
+      "updatedAt": "2026-06-18T13:00:00.000Z",
+      "history": [
+        { "at": "2026-06-18T13:00:00.000Z", "action": "创建", "note": "夜出登记" }
+      ]
+    },
+    {
+      "id": "emergence-seed-2",
+      "siteId": "site-seed-2",
+      "date": "2026-06-16",
+      "adultCount": 80,
+      "juvenileCount": 20,
+      "temperature": 16.1,
+      "observer": "沈宁",
+      "abandonedFlight": "无",
+      "note": "幼蝠占比偏高",
+      "judgment": "触发封护",
+      "juvenileRatio": 20,
+      "createdAt": "2026-06-16T13:10:00.000Z",
+      "updatedAt": "2026-06-16T13:10:00.000Z",
+      "history": [
+        { "at": "2026-06-16T13:10:00.000Z", "action": "创建", "note": "夜出登记" }
+      ]
+    },
+    {
+      "id": "emergence-seed-3",
+      "siteId": "site-seed-2",
+      "date": "2026-06-17",
+      "adultCount": 85,
+      "juvenileCount": 8,
+      "temperature": 16.0,
+      "observer": "王小",
+      "abandonedFlight": "无",
+      "note": "换人复核第一晚",
+      "judgment": "读数正常",
+      "juvenileRatio": 8.6,
+      "createdAt": "2026-06-17T13:30:00.000Z",
+      "updatedAt": "2026-06-17T13:30:00.000Z",
+      "history": [
+        { "at": "2026-06-17T13:30:00.000Z", "action": "创建", "note": "夜出登记" }
+      ]
+    }
+  ],
+  "settings": [
+    {
+      "id": "settings-emergence",
+      "juvenileRatioThreshold": 0.15,
+      "note": "幼蝠占比封护阈值（一成五）",
+      "createdAt": "2026-06-10T08:00:00.000Z",
+      "updatedAt": "2026-06-10T08:00:00.000Z",
+      "history": [
+        { "at": "2026-06-10T08:00:00.000Z", "action": "创建", "note": "夜出判定阈值建档" }
       ]
     }
   ]

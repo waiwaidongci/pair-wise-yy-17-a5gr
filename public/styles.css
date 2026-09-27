@@ -309,6 +309,31 @@ main {
   border-radius: 8px;
 }
 
+.threshold {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 18px;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.7;
+}
+
+.threshold strong {
+  color: var(--ink);
+}
+
+.threshold input {
+  width: 88px;
+  display: inline-block;
+  padding: 6px 8px;
+}
+
+.threshold button {
+  padding: 8px 12px;
+}
+
 .toast {
   position: fixed;
   right: 20px;
