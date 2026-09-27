@@ -1,4 +1,20 @@
 {
+  "settings": [
+    {
+      "id": "bat-rules",
+      "juvenileRatioLimit": 0.15,
+      "note": "幼蝠占比超过该比例或出现弃飞即封护",
+      "createdAt": "2026-09-20T08:00:00.000Z",
+      "updatedAt": "2026-09-20T08:00:00.000Z",
+      "history": [
+        {
+          "at": "2026-09-20T08:00:00.000Z",
+          "action": "创建",
+          "note": "繁殖季夜出判定阈值"
+        }
+      ]
+    }
+  ],
   "sites": [
     {
       "id": "site-seed-1",
@@ -12,10 +28,55 @@
       "baselineHumidity": 92,
       "baselineCo2": 680,
       "note": "游客步道上方，滴水频率稳定",
+      "manualHold": false,
+      "closureStatus": "封护",
+      "closureReason": "幼蝠占比 16.7%（2026-09-25）",
+      "closureTriggerId": "emg-seed-2",
+      "closureObserver": "沈宁",
+      "closureSince": "2026-09-25T11:35:00.000Z",
+      "reviewStreak": 1,
       "createdAt": "2026-06-14T08:00:00.000Z",
-      "updatedAt": "2026-06-14T08:00:00.000Z",
+      "updatedAt": "2026-09-26T11:45:00.000Z",
       "history": [
-        { "at": "2026-06-14T08:00:00.000Z", "action": "创建", "note": "样点建档" }
+        {
+          "at": "2026-09-25T11:35:00.000Z",
+          "action": "封护",
+          "note": "触发封护：幼蝠占比 16.7%（2026-09-25）"
+        },
+        {
+          "at": "2026-06-14T08:00:00.000Z",
+          "action": "创建",
+          "note": "样点建档"
+        }
+      ]
+    },
+    {
+      "id": "site-seed-2",
+      "cave": "南坡一号洞",
+      "zone": "蝙蝠厅",
+      "pointCode": "B-02",
+      "route": "东线巡测",
+      "sensitivity": "中",
+      "protectedStatus": "常规观察",
+      "baselineTemp": 15.8,
+      "baselineHumidity": 90,
+      "baselineCo2": 640,
+      "note": "繁殖季蝠群主要栖息厅",
+      "manualHold": false,
+      "closureStatus": "开放",
+      "closureReason": "",
+      "closureTriggerId": "",
+      "closureObserver": "",
+      "closureSince": "",
+      "reviewStreak": 0,
+      "createdAt": "2026-09-20T08:00:00.000Z",
+      "updatedAt": "2026-09-20T08:00:00.000Z",
+      "history": [
+        {
+          "at": "2026-09-20T08:00:00.000Z",
+          "action": "创建",
+          "note": "样点建档"
+        }
       ]
     }
   ],
@@ -36,7 +97,118 @@
       "createdAt": "2026-06-18T10:00:00.000Z",
       "updatedAt": "2026-06-18T10:00:00.000Z",
       "history": [
-        { "at": "2026-06-18T10:00:00.000Z", "action": "创建", "note": "CO2升高并有干扰痕迹" }
+        {
+          "at": "2026-06-18T10:00:00.000Z",
+          "action": "创建",
+          "note": "CO2升高并有干扰痕迹"
+        }
+      ]
+    }
+  ],
+  "emergences": [
+    {
+      "id": "emg-seed-1",
+      "siteId": "site-seed-1",
+      "date": "2026-09-24",
+      "adultCount": 182,
+      "juvenileCount": 21,
+      "temperature": 16.8,
+      "observer": "沈宁",
+      "abandoned": false,
+      "verdict": "有效",
+      "duplicateCount": 0,
+      "createdAt": "2026-09-24T11:40:00.000Z",
+      "updatedAt": "2026-09-24T11:40:00.000Z",
+      "history": [
+        {
+          "at": "2026-09-24T11:40:00.000Z",
+          "action": "创建",
+          "note": "夜出计数"
+        }
+      ]
+    },
+    {
+      "id": "emg-seed-2",
+      "siteId": "site-seed-1",
+      "date": "2026-09-25",
+      "adultCount": 150,
+      "juvenileCount": 30,
+      "temperature": 17.1,
+      "observer": "沈宁",
+      "abandoned": false,
+      "verdict": "有效",
+      "duplicateCount": 1,
+      "createdAt": "2026-09-25T11:35:00.000Z",
+      "updatedAt": "2026-09-25T11:35:00.000Z",
+      "history": [
+        {
+          "at": "2026-09-25T11:35:00.000Z",
+          "action": "创建",
+          "note": "幼蝠占比超阈值"
+        }
+      ]
+    },
+    {
+      "id": "emg-seed-3",
+      "siteId": "site-seed-1",
+      "date": "2026-09-25",
+      "adultCount": 148,
+      "juvenileCount": 31,
+      "temperature": 17,
+      "observer": "李岚",
+      "abandoned": false,
+      "verdict": "重复上报",
+      "duplicateCount": 0,
+      "createdAt": "2026-09-25T12:10:00.000Z",
+      "updatedAt": "2026-09-25T12:10:00.000Z",
+      "history": [
+        {
+          "at": "2026-09-25T12:10:00.000Z",
+          "action": "创建",
+          "note": "同晚重复上报"
+        }
+      ]
+    },
+    {
+      "id": "emg-seed-4",
+      "siteId": "site-seed-1",
+      "date": "2026-09-26",
+      "adultCount": 164,
+      "juvenileCount": 15,
+      "temperature": 16.9,
+      "observer": "李岚",
+      "abandoned": false,
+      "verdict": "有效",
+      "duplicateCount": 0,
+      "createdAt": "2026-09-26T11:45:00.000Z",
+      "updatedAt": "2026-09-26T11:45:00.000Z",
+      "history": [
+        {
+          "at": "2026-09-26T11:45:00.000Z",
+          "action": "创建",
+          "note": "封护后复核（换人）"
+        }
+      ]
+    },
+    {
+      "id": "emg-seed-5",
+      "siteId": "site-seed-2",
+      "date": "2026-09-26",
+      "adultCount": 210,
+      "juvenileCount": 18,
+      "temperature": 16.2,
+      "observer": "周岩",
+      "abandoned": false,
+      "verdict": "有效",
+      "duplicateCount": 0,
+      "createdAt": "2026-09-26T12:05:00.000Z",
+      "updatedAt": "2026-09-26T12:05:00.000Z",
+      "history": [
+        {
+          "at": "2026-09-26T12:05:00.000Z",
+          "action": "创建",
+          "note": "夜出计数"
+        }
       ]
     }
   ]

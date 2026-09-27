@@ -179,6 +179,143 @@ function renderDashboardView(view) {
   </section>`;
 }
 
+// ---------- 夜出台 ----------
+let nightEditId = '';
+
+function siteById(id) {
+  return (state.db.sites || []).find((site) => site.id === id);
+}
+
+function siteLabel(site) {
+  if (!site) return '未关联样点';
+  return [site.cave, site.zone, site.pointCode].filter(Boolean).join(' / ');
+}
+
+function localToday() {
+  const now = new Date();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  return `${now.getFullYear()}-${month}-${day}`;
+}
+
+function isAbandoned(rec) {
+  return rec.abandoned === true || rec.abandoned === '是';
+}
+
+function ratioText(rec) {
+  const total = Number(rec.adultCount || 0) + Number(rec.juvenileCount || 0);
+  if (!total) return '—';
+  return `${(Number(rec.juvenileCount || 0) / total * 100).toFixed(1)}%`;
+}
+
+function batLimit() {
+  const row = (state.db.settings || []).find((entry) => entry.id === 'bat-rules');
+  const limit = Number(row?.juvenileRatioLimit);
+  return Number.isFinite(limit) && limit > 0 ? limit : 0.15;
+}
+
+function renderNightForm() {
+  const sites = state.db.sites || [];
+  return `<form class="panel" id="nightForm">
+    <h2>登记夜出${nightEditId ? ' <span class="pill warn">改正中</span>' : ''}</h2>
+    <div class="form-grid">
+      <label class="wide">样点<select name="siteId" required>${optionList(sites, ['cave', 'zone', 'pointCode'])}</select></label>
+      <label>日期<input type="date" name="date" value="${localToday()}" required></label>
+      <label>观察员<input name="observer" required></label>
+      <label>成蝠数<input type="number" name="adultCount" min="0" value="0" required></label>
+      <label>幼蝠数<input type="number" name="juvenileCount" min="0" value="0" required></label>
+      <label>温度℃<input type="number" name="temperature" step="0.1" required></label>
+      <label>弃飞<select name="abandoned"><option value="否">否</option><option value="是">是</option></select></label>
+    </div>
+    <p class="hint">同一样点同晚只认首条，重复上报只累加；幼蝠占比超过 ${(batLimit() * 100).toFixed(0)}% 或出现弃飞即封护。</p>
+    <div class="actions">
+      <button>${nightEditId ? '保存改正' : '保存夜出'}</button>
+      ${nightEditId ? '<button type="button" class="ghost" id="nightCancelEdit">取消改正</button>' : ''}
+    </div>
+  </form>`;
+}
+
+function renderNightBoard() {
+  const rank = { '封护': 0, '人工暂停': 1, '开放': 2 };
+  const sites = [...(state.db.sites || [])].sort((a, b) => (rank[a.closureStatus] ?? 3) - (rank[b.closureStatus] ?? 3));
+  const cards = sites.map((site) => {
+    const status = site.closureStatus || '开放';
+    const open = status === '开放';
+    const lines = [];
+    if (status === '封护') {
+      lines.push(`触发：${escapeHtml(site.closureReason || '-')}`);
+      lines.push(`复核进度 ${site.reviewStreak || 0}/2 晚（须换人·非${escapeHtml(site.closureObserver || '原观察员')}，读数均低且间隔≥24小时）`);
+    }
+    if (status === '人工暂停') lines.push('人工暂停开放，复核不自动放开，需人工解除');
+    const actions = state.config.actions
+      .filter((action) => action.collection === 'sites' && action.id.startsWith('site-manual'))
+      .map((action) => `<button class="${action.danger ? 'danger' : 'ghost'}" data-action="${action.id}" data-id="${site.id}">${escapeHtml(action.label)}</button>`)
+      .join('');
+    return `<article class="card">
+      <div class="card-head"><h3>${escapeHtml(siteLabel(site))}</h3>${pill(status, toneFor(status))}</div>
+      <div class="meta">今晚进洞：<strong>${open ? '可进洞' : '禁止进洞'}</strong></div>
+      ${lines.map((line) => `<div class="meta">${line}</div>`).join('')}
+      <div class="actions">${actions}</div>
+    </article>`;
+  }).join('');
+  return `<div class="panel">
+    <h2>洞口通行状态</h2>
+    <div class="threshold">
+      <label>幼蝠占比阈值（%）<input id="nightLimit" type="number" min="1" max="100" step="1" value="${(batLimit() * 100).toFixed(0)}"></label>
+      <button type="button" class="ghost" id="nightLimitSave">保存阈值</button>
+    </div>
+    <div class="list">${cards || '<div class="empty">暂无样点</div>'}</div>
+  </div>`;
+}
+
+function renderNightRecords(view) {
+  const query = ($('#nightSearch')?.value || '').trim();
+  const verdict = $('#nightVerdict')?.value || '';
+  const items = [...(state.db.emergences || [])];
+  items.sort((a, b) => String(b.date).localeCompare(String(a.date)) || new Date(b.createdAt) - new Date(a.createdAt));
+  const filtered = items.filter((rec) => {
+    if (verdict && rec.verdict !== verdict) return false;
+    if (!query) return true;
+    return [rec.observer, siteLabel(siteById(rec.siteId))].some((text) => String(text || '').includes(query));
+  });
+  if (!filtered.length) return '<div class="empty">暂无夜出记录</div>';
+  return filtered.map((rec) => {
+    const dup = rec.verdict === '有效' && rec.duplicateCount > 0
+      ? ` <span class="pill warn">重复上报 ×${rec.duplicateCount} 已累加</span>` : '';
+    return `<article class="card">
+      <div class="card-head"><h3>${escapeHtml(siteLabel(siteById(rec.siteId)))} · ${escapeHtml(rec.date || '-')}</h3>
+        <span>${pill(rec.verdict || '有效', toneFor(rec.verdict || '有效'))}${dup}</span></div>
+      <div class="detail">
+        <div>成蝠<br><strong>${escapeHtml(rec.adultCount ?? '-')}</strong></div>
+        <div>幼蝠<br><strong>${escapeHtml(rec.juvenileCount ?? '-')}</strong></div>
+        <div>幼蝠占比<br><strong>${ratioText(rec)}</strong></div>
+        <div>温度℃<br><strong>${escapeHtml(rec.temperature ?? '-')}</strong></div>
+        <div>观察员<br><strong>${escapeHtml(rec.observer || '-')}</strong></div>
+        <div>弃飞<br><strong>${isAbandoned(rec) ? '是' : '否'}</strong></div>
+      </div>
+      <div class="actions"><button class="ghost" data-edit="${rec.id}">改正</button></div>
+      ${historyHtml(rec)}
+    </article>`;
+  }).join('');
+}
+
+function renderNightView(view) {
+  return `<section class="view" id="${view.id}">
+    <div class="grid">
+      ${renderNightForm()}
+      ${renderNightBoard()}
+    </div>
+    <div class="panel night-records">
+      <h2>${escapeHtml(view.listTitle)}</h2>
+      <div class="toolbar">
+        <input id="nightSearch" placeholder="${escapeHtml(view.searchPlaceholder || '搜索')}">
+        <select id="nightVerdict"><option value="">全部判定</option>${(view.statusOptions || []).map((option) => `<option>${escapeHtml(option)}</option>`).join('')}</select>
+      </div>
+      <div class="list" id="nightList">${renderNightRecords(view)}</div>
+    </div>
+  </section>`;
+}
+
 function renderCrudView(view) {
   const statusOptions = view.statusOptions || [];
   return `<section class="view" id="${view.id}">
@@ -207,7 +344,11 @@ function render() {
   $('#title').textContent = state.config.title;
   document.title = state.config.title;
   $('#lede').textContent = state.config.lede;
-  $('#main').innerHTML = state.config.views.map((view) => view.type === 'dashboard' ? renderDashboardView(view) : renderCrudView(view)).join('');
+  $('#main').innerHTML = state.config.views.map((view) => {
+    if (view.type === 'dashboard') return renderDashboardView(view);
+    if (view.type === 'night') return renderNightView(view);
+    return renderCrudView(view);
+  }).join('');
   setTab(state.activeTab || state.config.views[0].id);
 }
 
@@ -245,6 +386,85 @@ document.addEventListener('submit', async (event) => {
   form.reset();
   await load();
   toast('已保存');
+});
+
+// 夜出台：登记与改正提交
+document.addEventListener('submit', async (event) => {
+  if (event.target.id !== 'nightForm') return;
+  event.preventDefault();
+  const data = Object.fromEntries(new FormData(event.target).entries());
+  const payload = {
+    siteId: data.siteId,
+    date: data.date,
+    observer: data.observer,
+    adultCount: Number(data.adultCount || 0),
+    juvenileCount: Number(data.juvenileCount || 0),
+    temperature: Number(data.temperature || 0),
+    abandoned: data.abandoned === '是'
+  };
+  try {
+    if (nightEditId) {
+      await api(`/api/emergences/${nightEditId}`, { method: 'PATCH', body: JSON.stringify({ ...payload, historyAction: '改正计数' }) });
+      toast('已改正，按新值重判');
+    } else {
+      await api('/api/emergences', { method: 'POST', body: JSON.stringify(payload) });
+      toast('已保存');
+    }
+    nightEditId = '';
+    await load();
+  } catch (error) {
+    toast(error.message);
+  }
+});
+
+// 夜出台：改正入口、取消改正、阈值保存
+document.addEventListener('click', async (event) => {
+  const editBtn = event.target.closest('[data-edit]');
+  if (editBtn) {
+    const rec = (state.db.emergences || []).find((entry) => entry.id === editBtn.dataset.edit);
+    if (!rec) return;
+    nightEditId = rec.id;
+    render();
+    const form = $('#nightForm');
+    form.siteId.value = rec.siteId;
+    form.date.value = rec.date;
+    form.observer.value = rec.observer || '';
+    form.adultCount.value = rec.adultCount ?? 0;
+    form.juvenileCount.value = rec.juvenileCount ?? 0;
+    form.temperature.value = rec.temperature ?? '';
+    form.abandoned.value = isAbandoned(rec) ? '是' : '否';
+    form.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    return;
+  }
+  if (event.target.id === 'nightCancelEdit') {
+    nightEditId = '';
+    render();
+    return;
+  }
+  if (event.target.id === 'nightLimitSave') {
+    const pct = Number($('#nightLimit').value);
+    if (!Number.isFinite(pct) || pct <= 0 || pct > 100) {
+      toast('阈值需在 1-100 之间');
+      return;
+    }
+    try {
+      await api('/api/settings/bat-rules', {
+        method: 'PATCH',
+        body: JSON.stringify({ juvenileRatioLimit: pct / 100, historyAction: '调整阈值', note: `幼蝠占比阈值调整为 ${pct}%` })
+      });
+      await load();
+      toast('阈值已保存，按新值重判');
+    } catch (error) {
+      toast(error.message);
+    }
+  }
+});
+
+// 夜出台：记录筛选
+document.addEventListener('input', (event) => {
+  if (event.target.id !== 'nightSearch' && event.target.id !== 'nightVerdict') return;
+  const view = state.config.views.find((entry) => entry.type === 'night');
+  if (view) $('#nightList').innerHTML = renderNightRecords(view);
 });
 
 $('#refreshBtn').addEventListener('click', () => load().then(() => toast('已刷新')));

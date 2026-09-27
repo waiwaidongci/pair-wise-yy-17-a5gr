@@ -6,18 +6,25 @@ module.exports = {
     '常规观察': 'ok',
     '正常': 'ok',
     '已复查': 'ok',
+    '开放': 'ok',
+    '有效': 'ok',
     '重点保护': 'warn',
+    '重复上报': 'warn',
     '异常待复查': 'bad',
-    '暂停开放': 'bad'
+    '暂停开放': 'bad',
+    '封护': 'bad',
+    '人工暂停': 'bad'
   },
   collections: {
     sites: { label: '样点档案' },
-    surveys: { label: '巡测记录' }
+    surveys: { label: '巡测记录' },
+    emergences: { label: '夜出记录' },
+    settings: { label: '判定设置' }
   },
   stats: [
     { label: '样点', collection: 'sites' },
-    { label: '重点保护', collection: 'sites', filter: { field: 'protectedStatus', value: '重点保护' } },
-    { label: '巡测记录', collection: 'surveys' },
+    { label: '封护中', collection: 'sites', filter: { field: 'closureStatus', value: '封护' } },
+    { label: '夜出记录', collection: 'emergences' },
     { label: '待复查', collection: 'surveys', filter: { field: 'status', value: '异常待复查' } }
   ],
   views: [
@@ -27,6 +34,18 @@ module.exports = {
       type: 'dashboard',
       focusTitle: '异常与复查',
       focus: { collection: 'surveys', field: 'status', values: ['异常待复查'], limit: 8 }
+    },
+    {
+      id: 'night',
+      label: '夜出台',
+      type: 'night',
+      collection: 'emergences',
+      formTitle: '登记夜出',
+      listTitle: '夜出记录',
+      boardTitle: '洞口通行状态',
+      submitLabel: '保存夜出',
+      searchPlaceholder: '搜索观察员、洞穴、样点',
+      statusOptions: ['有效', '重复上报']
     },
     {
       id: 'sites',
@@ -44,7 +63,8 @@ module.exports = {
       detailFields: [
         { label: '洞穴', name: 'cave' },
         { label: '巡测路线', name: 'route' },
-        { label: '敏感等级', name: 'sensitivity' }
+        { label: '敏感等级', name: 'sensitivity' },
+        { label: '封护状态', name: 'closureStatus' }
       ],
       fields: [
         { label: '洞穴', name: 'cave', required: true },
@@ -96,6 +116,8 @@ module.exports = {
     { id: 'site-normal', label: '常规观察', collection: 'sites', patches: [{ field: 'protectedStatus', value: '常规观察' }] },
     { id: 'site-focus', label: '重点保护', collection: 'sites', patches: [{ field: 'protectedStatus', value: '重点保护' }] },
     { id: 'site-close', label: '暂停开放', collection: 'sites', danger: true, patches: [{ field: 'protectedStatus', value: '暂停开放' }] },
+    { id: 'site-manual-pause', label: '人工暂停开放', collection: 'sites', danger: true, note: '人工暂停开放，需人工解除', patches: [{ field: 'manualHold', value: true }] },
+    { id: 'site-manual-release', label: '人工解除', collection: 'sites', note: '人工解除，恢复按记录判定', patches: [{ field: 'manualHold', value: false }] },
     {
       id: 'survey-alert',
       label: '标记异常',
